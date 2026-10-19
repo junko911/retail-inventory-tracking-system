@@ -11,6 +11,7 @@
     <tr>
       <th>Name</th>
       <th>Tracking Events</th>
+      <th>Price Checks</th>
       <th></th>
     </tr>
   </thead>
@@ -19,6 +20,7 @@
       <tr>
         <td><%= product.name %></td>
         <td><%= product.tracking_events.size %></td>
+        <td><%= product.price_checks.size %></td>
         <td><%= link_to "View Product", product_path(product) %></td>
       </tr>
     <% end %>

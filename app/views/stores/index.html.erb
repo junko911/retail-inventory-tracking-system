@@ -5,6 +5,7 @@
     <tr>
       <th>Address</th>
       <th>Tracking Events</th>
+      <th>Price Checks</th>
       <th></th>
     </tr>
   </thead>
@@ -13,6 +14,7 @@
       <tr>
         <td><%= store.address %></td>
         <td><%= store.tracking_events.size %></td>
+        <td><%= store.price_checks.size %></td>
         <td><%= link_to "View", store_path(store) %></td>
       </tr>
     <% end %>

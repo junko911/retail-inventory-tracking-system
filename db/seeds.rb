@@ -1,9 +1,8 @@
 # db/seeds.rb
 
-# Clear existing data (adjust if you have dependent models like, etc.)
-Store.destroy_all
-Brand.destroy_all
-Product.destroy_all
+# Price checks are sample data and can be replaced. Brands, products, stores, and
+# tracking events are left in place so re-seeding does not drop imported inventory.
+PriceCheck.delete_all
 
 brands_products = {
   "The Prancing Pony" => [
@@ -431,17 +430,33 @@ store_addresses = [
 puts "Creating Brands and Products..."
 
 brands_products.each do |brand_name, products|
-  brand = Brand.create!(name: brand_name)
+  brand = Brand.find_or_create_by!(name: brand_name)
 
   products.each do |product_name|
-    Product.create!(name: product_name, brand: brand)
+    Product.find_or_create_by!(name: product_name, brand: brand)
   end
 end
 
 puts "Creating Stores..."
 
 store_addresses.each do |address|
-  Store.create!(address: address)
+  Store.find_or_create_by!(address: address)
+end
+
+puts "Creating Price Checks..."
+
+products = Product.order(:id).to_a
+stores = Store.order(:id).to_a
+rng = Random.new(2026)
+base_time = Time.zone.parse("2025-01-01 09:00")
+
+300.times do |i|
+  PriceCheck.create!(
+    product: products[i % products.size],
+    store: stores[(i * 7) % stores.size],
+    price: format("%.2f", rng.rand(0..5_000) / 100.0),
+    event_time: base_time + i.days + rng.rand(0..8).hours
+  )
 end
 
 puts "Seed complete!"

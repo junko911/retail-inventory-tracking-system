@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_12_05_020718) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_19_144500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -18,6 +18,18 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_05_020718) do
     t.string "name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "price_checks", force: :cascade do |t|
+    t.decimal "price", precision: 10, scale: 2, null: false
+    t.bigint "product_id", null: false
+    t.bigint "store_id", null: false
+    t.datetime "event_time", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["product_id", "store_id", "event_time"], name: "index_price_checks_on_product_id_and_store_id_and_event_time"
+    t.index ["store_id"], name: "index_price_checks_on_store_id"
+    t.check_constraint "price >= 0::numeric", name: "price_checks_price_non_negative"
   end
 
   create_table "products", force: :cascade do |t|
@@ -45,6 +57,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_05_020718) do
     t.index ["store_id"], name: "index_tracking_events_on_store_id"
   end
 
+  add_foreign_key "price_checks", "products"
+  add_foreign_key "price_checks", "stores"
   add_foreign_key "products", "brands"
   add_foreign_key "tracking_events", "products"
   add_foreign_key "tracking_events", "stores"

@@ -11,7 +11,12 @@
 
 <p>
   <strong>Total Tracking Events:</strong>
-  <%= @product.tracking_events.size %>
+  <%= @tracking_events.size %>
+</p>
+
+<p>
+  <strong>Total Price Checks:</strong>
+  <%= @price_checks.size %>
 </p>
 
 <h2>Tracking Events</h2>
@@ -24,11 +29,31 @@
     </tr>
   </thead>
   <tbody>
-    <% @product.tracking_events.each do |event| %>
+    <% @tracking_events.each do |event| %>
       <tr>
         <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
         <td><%= event.inventory_present ? "Yes" : "No" %></td>
         <td><%= event.store&.address %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<h2>Price Checks</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Event Time</th>
+      <th>Price</th>
+      <th>Store Address</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @price_checks.each do |price_check| %>
+      <tr>
+        <td><%= price_check.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
+        <td><%= number_to_currency(price_check.price) %></td>
+        <td><%= link_to price_check.store.address, store_path(price_check.store) %></td>
       </tr>
     <% end %>
   </tbody>
