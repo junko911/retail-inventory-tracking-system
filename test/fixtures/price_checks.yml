@@ -1,0 +1,11 @@
+one:
+  price: 4.50
+  product: widget
+  store: main_street
+  event_time: 2026-01-06 09:00:00
+
+two:
+  price: 6.25
+  product: gadget
+  store: oak_avenue
+  event_time: 2026-03-02 16:45:00

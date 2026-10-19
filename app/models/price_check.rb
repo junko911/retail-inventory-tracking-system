@@ -4,6 +4,6 @@ class PriceCheck < ApplicationRecord
   belongs_to :product
   belongs_to :store
 
-  validates :price, numericality: { greater_than_or_equal_to: 0 }
+  validates :price, presence: true, numericality: { greater_than_or_equal_to: 0, allow_nil: true }
   validates :event_time, presence: true
 end
