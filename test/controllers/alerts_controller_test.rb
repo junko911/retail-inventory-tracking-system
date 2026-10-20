@@ -40,4 +40,28 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a", text: "Bree-Brewed Ale"
     assert_select "a", text: "Chocolate Frogs", count: 0
   end
+
+  test "index paginates alerts" do
+    per_page = ApplicationController::PER_PAGE
+    base = Time.zone.parse("2026-06-01 09:00")
+
+    (per_page + 1).times do |i|
+      offset = i * 3
+      TrackingEvent.create!(product: products(:widget), store: stores(:main_street), inventory_present: false, event_time: base + offset.hours)
+      TrackingEvent.create!(product: products(:widget), store: stores(:main_street), inventory_present: false, event_time: base + (offset + 1).hours)
+      TrackingEvent.create!(product: products(:widget), store: stores(:main_street), inventory_present: true, event_time: base + (offset + 2).hours)
+    end
+
+    get alerts_path
+
+    assert_response :success
+    assert_select "p", text: "#{per_page + 1} alerts"
+    assert_select "p.pagination", text: /Page 1 of 2/
+    assert_select "table tbody tr", per_page
+
+    get alerts_path(page: 2)
+    assert_response :success
+    assert_select "table tbody tr", 1
+  end
 end
+

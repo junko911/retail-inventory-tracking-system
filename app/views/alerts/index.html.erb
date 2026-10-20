@@ -5,6 +5,7 @@
 <% if @alerts.empty? %>
   <p>No alerts yet.</p>
 <% else %>
+  <%= pagination_nav { |page| alerts_path(page: page, brand_id: params[:brand_id]) } %>
   <table>
     <thead>
       <tr>
@@ -27,6 +28,7 @@
       <% end %>
     </tbody>
   </table>
+  <%= pagination_nav { |page| alerts_path(page: page, brand_id: params[:brand_id]) } %>
 <% end %>
 
 <nav>

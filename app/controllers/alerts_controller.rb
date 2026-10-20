@@ -1,7 +1,10 @@
 class AlertsController < ApplicationController
   def index
-    @alerts = Alert.includes(:brand, :product, :store).order(triggered_at: :desc, id: :desc)
-    @alerts = @alerts.where(brand_id: params[:brand_id]) if params[:brand_id].present?
+    scope = Alert.order(triggered_at: :desc, id: :desc)
+    scope = scope.where(brand_id: params[:brand_id]) if params[:brand_id].present?
+    @alert_count = scope.count
+    current_page(@alert_count)
+    @alerts = scope.includes(:brand, :product, :store).offset(page_offset).limit(PER_PAGE)
   end
 
   def show
