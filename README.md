@@ -64,6 +64,7 @@ UI: `/alerts` (paginated, optional `brand_id` filter) and a show page for the tw
 - `insert_all` in batches of 5,000 (no per-row validations/callbacks).
 - One `Alerts::Backfill` after the load (only if any rows were inserted).
 - Abort if any tracking events already exist (not idempotent; re-import would duplicate rows and invent false streaks).
+- The importer does **not** dedupe CSV rows. See Assumptions for how duplicate / same-day rows affect alerts.
 
 **Reads**
 
@@ -81,13 +82,26 @@ UI: `/alerts` (paginated, optional `brand_id` filter) and a show page for the tw
 | Preview + View all (not infinite show pages) | Detail pages stay light; full lists live on dedicated paginated indexes. |
 | Unique brand name, store address, product name | Importer lookup hashes assume uniqueness. Product names are **globally** unique because the CSV has no brand column. |
 | Import refuses a second run | Safer than silent duplication. Clear the table (and alerts) or use a fresh DB to re-import. |
+| No CSV dedupe on import | Keeps import simple and preserves every row the file contains. Alert quirks from duplicates are documented below instead of inventing a collapse rule. |
 
 ## Assumptions
 
 - One currency for prices (`decimal(10, 2)`).
 - Consecutive means next event for the same store + product by `event_time`, then `id`.
 - Null `event_time` events do not participate in alert detection.
+- Alert sync runs on create only (`after_create`). Updating or deleting tracking events later is out of scope; re-run `bin/rails alerts:backfill` to repair.
 - AI assistance was used on this project (allowed by the brief).
+
+### CSV duplicates and same-day ordering
+
+The provided `tracking_events.csv` contains many exact duplicate rows (same address, product name, date, and inventory flag), including repeated `False` rows for the same store/product/day. Dates are day-granularity only, so ties are common.
+
+This project treats each imported row as its own tracking event. When two events share a store, product, and `event_time`, order is by `id` (insert order). That means:
+
+- Two identical no-inventory rows on the same day are consecutive by `id` and **will create a stockout alert**.
+- A day that has both `True` and `False` rows is ordered by insert/`id`, not by a “one observation per day” rule.
+
+That is intentional for this take-home: consecutive is defined on the event stream as stored, not on a deduped calendar day. A production system would likely unique on `(store, product, event_time)` or collapse same-day observations before alerting.
 
 ## Original objectives (brief)
 
