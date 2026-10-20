@@ -10,9 +10,26 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_19_144500) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_19_203000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "alerts", force: :cascade do |t|
+    t.bigint "brand_id", null: false
+    t.bigint "store_id", null: false
+    t.bigint "product_id", null: false
+    t.bigint "opening_tracking_event_id", null: false
+    t.bigint "confirming_tracking_event_id", null: false
+    t.datetime "triggered_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["brand_id", "triggered_at"], name: "index_alerts_on_brand_id_and_triggered_at"
+    t.index ["confirming_tracking_event_id"], name: "index_alerts_on_confirming_tracking_event_id", unique: true
+    t.index ["opening_tracking_event_id"], name: "index_alerts_on_opening_tracking_event_id", unique: true
+    t.index ["product_id"], name: "index_alerts_on_product_id"
+    t.index ["store_id", "product_id"], name: "index_alerts_on_store_id_and_product_id"
+    t.index ["triggered_at", "id"], name: "index_alerts_on_triggered_at_and_id"
+  end
 
   create_table "brands", force: :cascade do |t|
     t.string "name"
@@ -54,9 +71,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_19_144500) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["product_id"], name: "index_tracking_events_on_product_id"
-    t.index ["store_id"], name: "index_tracking_events_on_store_id"
+    t.index ["store_id", "product_id", "event_time", "id"], name: "index_tracking_events_on_store_product_time"
   end
 
+  add_foreign_key "alerts", "brands"
+  add_foreign_key "alerts", "products"
+  add_foreign_key "alerts", "stores"
+  add_foreign_key "alerts", "tracking_events", column: "confirming_tracking_event_id"
+  add_foreign_key "alerts", "tracking_events", column: "opening_tracking_event_id"
   add_foreign_key "price_checks", "products"
   add_foreign_key "price_checks", "stores"
   add_foreign_key "products", "brands"

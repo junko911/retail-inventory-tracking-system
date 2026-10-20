@@ -1,0 +1,36 @@
+<h1>Alerts</h1>
+
+<p><%= pluralize(@alert_count, "alert") %></p>
+
+<% if @alerts.empty? %>
+  <p>No alerts yet.</p>
+<% else %>
+  <table>
+    <thead>
+      <tr>
+        <th>Triggered</th>
+        <th>Brand</th>
+        <th>Product</th>
+        <th>Store</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @alerts.each do |alert| %>
+        <tr>
+          <td><%= alert.triggered_at.strftime("%Y-%m-%d %H:%M") %></td>
+          <td><%= link_to alert.brand.name, brand_path(alert.brand) %></td>
+          <td><%= link_to alert.product.name, product_path(alert.product) %></td>
+          <td><%= link_to alert.store.address, store_path(alert.store) %></td>
+          <td><%= link_to "View", alert_path(alert) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
+
+<nav>
+  <%= link_to "Products", products_path %> |
+  <%= link_to "Brands", brands_path %> |
+  <%= link_to "Stores", stores_path %>
+</nav>
