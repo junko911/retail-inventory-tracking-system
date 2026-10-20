@@ -16,6 +16,7 @@ module TrackingEvents
 
     def initialize(path)
       @path = path
+      @parsed_dates = {}
     end
 
     def call
@@ -38,12 +39,13 @@ module TrackingEvents
 
         store_id = store_ids_by_address[row["Address"]]
         product_id = product_ids_by_name[row["Product Name"]]
-        next unless store_id && product_id
+        event_time = parse_date(row["Date"])
+        next unless store_id && product_id && event_time
 
         batch << {
           store_id: store_id,
           product_id: product_id,
-          event_time: Date.parse(row["Date"]),
+          event_time: event_time,
           inventory_present: cast_boolean(row["Inventory Present"]),
           created_at: now,
           updated_at: now
@@ -72,6 +74,18 @@ module TrackingEvents
     end
 
     private
+
+    # Memoize: the CSV repeats a small set of calendar dates many times.
+    # Returns nil for blank/unparseable values so those rows are skipped.
+    def parse_date(value)
+      return if value.blank?
+
+      @parsed_dates.fetch(value) do
+        @parsed_dates[value] = Date.parse(value)
+      rescue ArgumentError, TypeError
+        @parsed_dates[value] = nil
+      end
+    end
 
     def cast_boolean(value)
       case value
