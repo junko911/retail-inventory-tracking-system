@@ -1,0 +1,51 @@
+<h1>Tracking Events</h1>
+
+<% if @filter_product || @filter_store || @filter_brand %>
+  <p>
+    Filtered by
+    <%= [
+      (@filter_product && "product #{link_to(@filter_product.name, product_path(@filter_product))}"),
+      (@filter_store && "store #{link_to(@filter_store.address, store_path(@filter_store))}"),
+      (@filter_brand && "brand #{link_to(@filter_brand.name, brand_path(@filter_brand))}")
+    ].compact.map(&:html_safe).to_sentence %>.
+    <%= link_to "Clear filters", tracking_events_path %>
+  </p>
+<% end %>
+
+<p><%= pluralize(@tracking_event_count, "tracking event") %></p>
+
+<% if @tracking_events.empty? %>
+  <p>No tracking events yet.</p>
+<% else %>
+  <%= pagination_nav { |page| tracking_events_path(page: page, product_id: params[:product_id], store_id: params[:store_id], brand_id: params[:brand_id]) } %>
+  <table>
+    <thead>
+      <tr>
+        <th>Event Time</th>
+        <th>Inventory Present?</th>
+        <th>Product</th>
+        <th>Brand</th>
+        <th>Store</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @tracking_events.each do |event| %>
+        <tr>
+          <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
+          <td><%= event.inventory_present ? "Yes" : "No" %></td>
+          <td><%= link_to event.product.name, product_path(event.product) %></td>
+          <td><%= event.product.brand ? link_to(event.product.brand.name, brand_path(event.product.brand)) : "None" %></td>
+          <td><%= link_to event.store.address, store_path(event.store) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <%= pagination_nav { |page| tracking_events_path(page: page, product_id: params[:product_id], store_id: params[:store_id], brand_id: params[:brand_id]) } %>
+<% end %>
+
+<nav>
+  <%= link_to "Products", products_path %> |
+  <%= link_to "Brands", brands_path %> |
+  <%= link_to "Stores", stores_path %> |
+  <%= link_to "Alerts", alerts_path %>
+</nav>

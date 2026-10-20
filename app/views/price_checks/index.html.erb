@@ -1,0 +1,51 @@
+<h1>Price Checks</h1>
+
+<% if @filter_product || @filter_store || @filter_brand %>
+  <p>
+    Filtered by
+    <%= [
+      (@filter_product && "product #{link_to(@filter_product.name, product_path(@filter_product))}"),
+      (@filter_store && "store #{link_to(@filter_store.address, store_path(@filter_store))}"),
+      (@filter_brand && "brand #{link_to(@filter_brand.name, brand_path(@filter_brand))}")
+    ].compact.map(&:html_safe).to_sentence %>.
+    <%= link_to "Clear filters", price_checks_path %>
+  </p>
+<% end %>
+
+<p><%= pluralize(@price_check_count, "price check") %></p>
+
+<% if @price_checks.empty? %>
+  <p>No price checks yet.</p>
+<% else %>
+  <%= pagination_nav { |page| price_checks_path(page: page, product_id: params[:product_id], store_id: params[:store_id], brand_id: params[:brand_id]) } %>
+  <table>
+    <thead>
+      <tr>
+        <th>Event Time</th>
+        <th>Price</th>
+        <th>Product</th>
+        <th>Brand</th>
+        <th>Store</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @price_checks.each do |price_check| %>
+        <tr>
+          <td><%= price_check.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
+          <td><%= number_to_currency(price_check.price) %></td>
+          <td><%= link_to price_check.product.name, product_path(price_check.product) %></td>
+          <td><%= price_check.product.brand ? link_to(price_check.product.brand.name, brand_path(price_check.product.brand)) : "None" %></td>
+          <td><%= link_to price_check.store.address, store_path(price_check.store) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <%= pagination_nav { |page| price_checks_path(page: page, product_id: params[:product_id], store_id: params[:store_id], brand_id: params[:brand_id]) } %>
+<% end %>
+
+<nav>
+  <%= link_to "Products", products_path %> |
+  <%= link_to "Brands", brands_path %> |
+  <%= link_to "Stores", stores_path %> |
+  <%= link_to "Alerts", alerts_path %>
+</nav>

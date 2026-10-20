@@ -15,8 +15,8 @@
       <tr>
         <td><%= product.name %></td>
         <td><%= product.brand&.name %></td>
-        <td><%= product.tracking_events.size %></td>
-        <td><%= product.price_checks.size %></td>
+        <td><%= @tracking_event_counts[product.id] || 0 %></td>
+        <td><%= @price_check_counts[product.id] || 0 %></td>
         <td><%= link_to "View", product_path(product) %></td>
       </tr>
     <% end %>
@@ -28,4 +28,3 @@
   <%= link_to "Stores", stores_path %> |
   <%= link_to "Alerts", alerts_path %>
 </nav>
-

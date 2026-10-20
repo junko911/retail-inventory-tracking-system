@@ -1,5 +1,6 @@
 class ApplicationController < ActionController::Base
   PER_PAGE = 50
+  PREVIEW_LIMIT = 20
 
   private
 

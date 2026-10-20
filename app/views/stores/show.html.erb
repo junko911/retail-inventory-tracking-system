@@ -7,57 +7,71 @@
 
 <p>
   <strong>Total Tracking Events:</strong>
-  <%= @tracking_events.length %>
+  <%= @tracking_event_count %>
 </p>
 
 <p>
   <strong>Total Price Checks:</strong>
-  <%= @price_checks.length %>
+  <%= @price_check_count %>
 </p>
 
 <h2>Tracking Events</h2>
-<table>
-  <thead>
-    <tr>
-      <th>Event Time</th>
-      <th>Inventory Present?</th>
-      <th>Product</th>
-      <th>Brand</th>
-    </tr>
-  </thead>
-  <tbody>
-    <% @tracking_events.each do |event| %>
+<% if @tracking_events.empty? %>
+  <p>No tracking events yet.</p>
+<% else %>
+  <table>
+    <thead>
       <tr>
-        <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
-        <td><%= event.inventory_present ? "Yes" : "No" %></td>
-        <td><%= link_to event.product.name, product_path(event.product) %></td>
-        <td><%= event.product.brand&.name %></td>
+        <th>Event Time</th>
+        <th>Inventory Present?</th>
+        <th>Product</th>
+        <th>Brand</th>
       </tr>
-    <% end %>
-  </tbody>
-</table>
+    </thead>
+    <tbody>
+      <% @tracking_events.each do |event| %>
+        <tr>
+          <td><%= event.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
+          <td><%= event.inventory_present ? "Yes" : "No" %></td>
+          <td><%= link_to event.product.name, product_path(event.product) %></td>
+          <td><%= event.product.brand&.name %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <% if @tracking_event_count > @tracking_events.size %>
+    <p><%= link_to "View all tracking events", tracking_events_path(store_id: @store.id) %></p>
+  <% end %>
+<% end %>
 
 <h2>Price Checks</h2>
-<table>
-  <thead>
-    <tr>
-      <th>Event Time</th>
-      <th>Price</th>
-      <th>Product</th>
-      <th>Brand</th>
-    </tr>
-  </thead>
-  <tbody>
-    <% @price_checks.each do |price_check| %>
+<% if @price_checks.empty? %>
+  <p>No price checks yet.</p>
+<% else %>
+  <table>
+    <thead>
       <tr>
-        <td><%= price_check.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
-        <td><%= number_to_currency(price_check.price) %></td>
-        <td><%= link_to price_check.product.name, product_path(price_check.product) %></td>
-        <td><%= price_check.product.brand&.name %></td>
+        <th>Event Time</th>
+        <th>Price</th>
+        <th>Product</th>
+        <th>Brand</th>
       </tr>
-    <% end %>
-  </tbody>
-</table>
+    </thead>
+    <tbody>
+      <% @price_checks.each do |price_check| %>
+        <tr>
+          <td><%= price_check.event_time&.strftime("%Y-%m-%d %H:%M") %></td>
+          <td><%= number_to_currency(price_check.price) %></td>
+          <td><%= link_to price_check.product.name, product_path(price_check.product) %></td>
+          <td><%= price_check.product.brand&.name %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <% if @price_check_count > @price_checks.size %>
+    <p><%= link_to "View all price checks", price_checks_path(store_id: @store.id) %></p>
+  <% end %>
+<% end %>
 
 <nav>
   <%= link_to "Back to Stores", stores_path %> |
@@ -65,4 +79,3 @@
   <%= link_to "Brands", brands_path %> |
   <%= link_to "Alerts", alerts_path %>
 </nav>
-

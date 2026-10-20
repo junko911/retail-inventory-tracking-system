@@ -13,8 +13,8 @@
     <% @stores.each do |store| %>
       <tr>
         <td><%= store.address %></td>
-        <td><%= store.tracking_events.size %></td>
-        <td><%= store.price_checks.size %></td>
+        <td><%= @tracking_event_counts[store.id] || 0 %></td>
+        <td><%= @price_check_counts[store.id] || 0 %></td>
         <td><%= link_to "View", store_path(store) %></td>
       </tr>
     <% end %>
@@ -26,4 +26,3 @@
   <%= link_to "Brands", brands_path %> |
   <%= link_to "Alerts", alerts_path %>
 </nav>
-

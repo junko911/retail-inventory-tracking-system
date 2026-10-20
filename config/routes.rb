@@ -9,6 +9,8 @@ Rails.application.routes.draw do
   resources :stores, only: [:index, :show]
   resources :brands, only: [:index, :show]
   resources :alerts, only: [:index, :show]
+  resources :tracking_events, only: [:index]
+  resources :price_checks, only: [:index]
 
   # Defines the root path route ("/")
   root "stores#index"
