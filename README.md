@@ -1,100 +1,101 @@
 # Retail Inventory Tracking System
 
-## Project Overview
-
-This project simulates a simplified retail inventory-tracking system. You are provided with:
-
-- A set of **Stores**
-- A set of **Brands**
-- A set of **Products**
-- A large CSV file containing **1,000,000 tracking events**
-- A basic importer that reads the CSV and creates `TrackingEvent` records
-
-Your goal is to improve the system, modify one of its key features, and then add a new feature.
-
-You are encouraged to:
-- Refactor existing code
-- Introduce new endpoints or views
-- Improve performance, clarity, and maintainability
-
-There is no single "correct" solution — but there are many poor ones. We want to see how **you** design and implement a real-world improvement inside a Rails application.
+Rails app for stores, brands, products, inventory tracking events, price checks, and stockout alerts. Built on the provided starter (Rails 7.1 / Ruby 3.2 / PostgreSQL) with a 1,000,000-row tracking CSV.
 
 ## Setup
 
-This app is a standard Rails 7.1 / Ruby 3.2 project backed by PostgreSQL.
+**Prerequisites:** Ruby `3.2.2`, PostgreSQL 13+, Bundler.
 
-### Prerequisites
-
-- **Ruby**: `3.2.2`
-- **Rails**: `~> 7.1.6`
-- **PostgreSQL**: 13+ recommended
-
-You can use **rbenv**, **rvm**, or **asdf** to install the correct Ruby version.
-
-#### Installing Ruby with rbenv
 ```bash
-# Install Ruby 3.2.2
-rbenv install 3.2.2
-
-# Set it locally for this project
-rbenv local 3.2.2
-```
-
-### Installation
-```bash
-# Install dependencies
 bundle install
-
-# Set up the database
-bin/rails db:create
-bin/rails db:migrate
-bin/rails db:seed
+bin/rails db:create db:migrate db:seed
 ```
 
-### Importing Tracking Events
+Import the CSV (after seeding, and only when `tracking_events` is empty):
 
-To import the million-row CSV file:
 ```bash
 bin/rails tracking_events:import
 ```
 
-## Objectives
+Start the server:
 
-### First Objective: Price Tracking
+```bash
+bin/rails server
+```
 
-Currently, the system only tracks if inventory is present via `TrackingEvent`. We want to add a way to track price. An inventory check and price check are separate and can occur without the other happening.
+Root path is the stores index. Main nav: Products, Brands, Stores, Tracking Events, Price Checks, Alerts.
 
-### Second Objective: Alert System
+Run tests:
 
-Build an alert system that creates an alert to the brand if a store has two "no inventory" events in a row for the same product based on event_time. There doesn't need to be a big UI for this—just a basic index and show page like the rest of the app.
+```bash
+bin/rails test
+```
 
-### Third Objective: Performance Improvements
+## What changed
 
-Improve the app's overall performance. This can be done as you work on the first and second objectives or after completing them.
+### 1. Price tracking
 
-## Technology Stack
+Inventory and price are separate observations. A new `PriceCheck` model stores `price`, `product`, `store`, and `event_time` (price required, non-negative). The CSV has no price column, so price checks are seeded and created in-app only.
 
-- **Ruby**: 3.2.2
-- **Rails**: 7.1.6
-- **Database**: PostgreSQL 13+
+Price checks appear on product, store, and brand show pages (preview + "View all"), and on `/price_checks` with optional filters.
 
-## Evaluation Criteria
+### 2. Stockout alerts
 
-You will be evaluated on:
-- Code quality and organization
-- Database design decisions
-- Performance optimizations
-- Ability to explain your thinking and decision making
+An `Alert` is created for a brand when a store has **two consecutive no-inventory** tracking events for the same product, ordered by `event_time` then `id`.
 
-Feel free to make reasonable assumptions where requirements are ambiguous—just document them in your code or a separate notes file.
+- A third stockout in the same streak does not create another alert.
+- An in-stock event ends the streak; a later stockout pair can alert again.
+- Each alert points at the opening and confirming events and uses the confirming event's time as `triggered_at`.
 
-## Time Expectation
+**How alerts stay correct**
 
-This project should take approximately [2-3 hours] to complete. Focus on demonstrating your problem-solving approach rather than achieving perfection. AI is allowed on this project. 
+- New `TrackingEvent.create!` runs `Alerts::SyncForTrackingEvent` (after_create). Neighbor lookups use event-time order, not insert order, so out-of-order times still repair nearby streak edges.
+- Bulk CSV import skips callbacks and rebuilds all alerts once with `Alerts::Backfill` (SQL window functions over store/product partitions).
+- Historical data that predates alerts can also be repaired with `bin/rails alerts:backfill`.
 
-## Submission
+UI: `/alerts` (paginated, optional `brand_id` filter) and a show page for the two events. Brand show previews recent alerts.
 
-Please submit:
-- A link or invite to your Git repository (GitHub, GitLab, etc.)
-- A brief README or notes document explaining your key decisions
-- Any instructions needed to run your solution
+### 3. Performance
+
+**Import**
+
+- Load store address → id and product name → id maps once.
+- `insert_all` in batches of 5,000 (no per-row validations/callbacks).
+- One `Alerts::Backfill` after the load.
+- Abort if any tracking events already exist (not idempotent; re-import would duplicate rows and invent false streaks).
+
+**Reads**
+
+- Index pages use grouped `COUNT` hashes instead of `association.size` per row (N+1 against 1M events).
+- Show pages preview the latest 20 tracking events, price checks, and alerts, with "View all" links to paginated indexes (50 per page) filtered by product, store, or brand.
+- Tracking event indexes: `(product_id, event_time, id)`, `(store_id, event_time, id)`, and `(store_id, product_id, event_time, id)` for show/list ordering and alert neighbor lookups. The redundant single-column `product_id` index was dropped after the composite was added.
+
+## Key decisions
+
+| Decision | Why |
+|---|---|
+| Separate `PriceCheck` table (not columns on `TrackingEvent`) | Spec says inventory and price can occur independently. Keeps the million-row inventory timeline clean. |
+| Alert = start of a two-stockout streak | Matches "two no-inventory in a row"; avoids one alert per overlapping pair in a long outage. |
+| Sync on create + SQL backfill for import | Interactive path stays correct per event; bulk path cannot afford per-row sync. Same streak rules in both. |
+| Preview + View all (not infinite show pages) | Detail pages stay light; full lists live on dedicated paginated indexes. |
+| Unique brand name, store address, product name | Importer lookup hashes assume uniqueness. Product names are **globally** unique because the CSV has no brand column. |
+| Import refuses a second run | Safer than silent duplication. Clear the table (and alerts) or use a fresh DB to re-import. |
+
+## Assumptions
+
+- One currency for prices (`decimal(10, 2)`).
+- Consecutive means next event for the same store + product by `event_time`, then `id`.
+- Null `event_time` events do not participate in alert detection.
+- AI assistance was used on this project (allowed by the brief).
+
+## Original objectives (brief)
+
+1. **Price tracking** - track price separately from inventory presence.
+2. **Alert system** - alert the brand on two consecutive no-inventory events for a store/product.
+3. **Performance** - improve overall performance alongside or after the above.
+
+## Stack
+
+- Ruby 3.2.2
+- Rails 7.1.6
+- PostgreSQL 13+
