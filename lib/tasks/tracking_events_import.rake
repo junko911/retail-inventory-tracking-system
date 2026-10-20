@@ -13,7 +13,12 @@ namespace :tracking_events do
 
     puts "Importing tracking events from #{path}..."
 
-    result = TrackingEvents::CsvImporter.new(path).call
+    begin
+      result = TrackingEvents::CsvImporter.new(path).call
+    rescue TrackingEvents::CsvImporter::AlreadyImportedError => e
+      puts "ERROR: #{e.message}"
+      exit 1
+    end
 
     puts "Done. Inserted #{result[:created]} events from #{result[:rows_processed]} rows."
     puts "Rebuilt #{result[:alerts]} stockout alerts."

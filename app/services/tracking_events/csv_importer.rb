@@ -6,7 +6,12 @@ module TrackingEvents
   # Uses insert_all (no per-row callbacks). Alerts are rebuilt once at the end
   # with Alerts::Backfill. Interactive TrackingEvent.create! still syncs alerts
   # via after_create.
+  #
+  # Not idempotent: aborts if any tracking events already exist so a second run
+  # cannot duplicate the CSV and invent false stockout streaks.
   class CsvImporter
+    class AlreadyImportedError < StandardError; end
+
     BATCH_SIZE = 5_000
 
     def initialize(path)
@@ -14,6 +19,12 @@ module TrackingEvents
     end
 
     def call
+      if TrackingEvent.exists?
+        raise AlreadyImportedError,
+              "Tracking events already exist. Truncate tracking_events (and alerts) " \
+              "or use a fresh database before importing again."
+      end
+
       store_ids_by_address = Store.pluck(:address, :id).to_h
       product_ids_by_name = Product.pluck(:name, :id).to_h
 
@@ -50,7 +61,7 @@ module TrackingEvents
         created_count += batch.size
       end
 
-      alert_count = Alerts::Backfill.call
+      alert_count = created_count.positive? ? Alerts::Backfill.call : 0
 
       Rails.logger.info(
         "[TrackingEvents::CsvImporter] rows processed=#{row_count} " \
