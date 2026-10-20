@@ -71,7 +71,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_20_140000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["product_id", "event_time", "id"], name: "index_tracking_events_on_product_id_and_event_time"
-    t.index ["product_id"], name: "index_tracking_events_on_product_id"
     t.index ["store_id", "event_time", "id"], name: "index_tracking_events_on_store_id_and_event_time"
     t.index ["store_id", "product_id", "event_time", "id"], name: "index_tracking_events_on_store_product_time"
   end
