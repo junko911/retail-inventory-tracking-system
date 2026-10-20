@@ -17,6 +17,8 @@ Import the CSV (after seeding, and only when `tracking_events` is empty):
 bin/rails tracking_events:import
 ```
 
+A full import of the provided CSV produces **about 31,447 stockout alerts**. That count is a quick sanity check after import (`Alert.count` in a Rails console).
+
 Start the server:
 
 ```bash
@@ -47,6 +49,8 @@ An `Alert` is created for a brand when a store has **two consecutive no-inventor
 - An in-stock event ends the streak; a later stockout pair can alert again.
 - Each alert points at the opening and confirming events and uses the confirming event's time as `triggered_at`.
 
+**Why the `id` tiebreak matters:** CSV dates have no time component. About **55,000** store/product/day combinations have more than one event, and about **18,000** of those disagree on inventory (`True` vs `False` on the same day). Without a deterministic second sort key, “two in a row” would be ambiguous for those ties. We order by `event_time`, then `id` (insert order).
+
 **How alerts stay correct**
 
 - New `TrackingEvent.create!` runs `Alerts::SyncForTrackingEvent` (after_create). Neighbor lookups use event-time order, not insert order, so out-of-order times still repair nearby streak edges.
@@ -71,12 +75,19 @@ UI: `/alerts` (paginated, optional `brand_id` filter) and a show page for the tw
 - Show pages preview the latest 20 tracking events, price checks, and alerts, with "View all" links to paginated indexes (50 per page) filtered by product, store, or brand.
 - Tracking event indexes: `(product_id, event_time, id)`, `(store_id, event_time, id)`, and `(store_id, product_id, event_time, id)` for show/list ordering and alert neighbor lookups. The redundant single-column `product_id` index was dropped after the composite was added.
 
+**Rough scale (why this matters)**
+
+- The original importer did about **3 million** SQL round-trips for 1M rows (`Store.find_by` + `Product.find_by` + `TrackingEvent.create!` each row), and would be far worse once per-row alert sync is enabled.
+- The bulk path is a handful of lookup queries, ~200 batched inserts, then one SQL backfill.
+- A store show with ~10k events loads a count + a 20-row preview with includes (on the order of **~8 queries**), not 10k association loads.
+
 ## Key decisions
 
 | Decision | Why |
 |---|---|
 | Separate `PriceCheck` table (not columns on `TrackingEvent`) | Spec says inventory and price can occur independently. Keeps the million-row inventory timeline clean. |
 | Alert = start of a two-stockout streak | Matches "two no-inventory in a row"; avoids one alert per overlapping pair in a long outage. |
+| Order by `event_time`, then `id` | Day-only CSV timestamps create tens of thousands of ties; `id` makes “consecutive” deterministic. |
 | Sync on create + SQL backfill for import | Interactive path stays correct per event; bulk path cannot afford per-row sync. Same streak rules in both. |
 | Preview + View all (not infinite show pages) | Detail pages stay light; full lists live on dedicated paginated indexes. |
 | Unique brand name, store address, product name | Importer lookup hashes assume uniqueness. Product names are **globally** unique because the CSV has no brand column. |
@@ -87,13 +98,12 @@ UI: `/alerts` (paginated, optional `brand_id` filter) and a show page for the tw
 
 - One currency for prices (`decimal(10, 2)`).
 - Consecutive means next event for the same store + product by `event_time`, then `id`.
-- Null `event_time` events do not participate in alert detection.
-- Alert sync runs on create only (`after_create`). Updating or deleting tracking events later is out of scope; re-run `bin/rails alerts:backfill` to repair.
+- Null `event_time` events do not participate in alert detection (`tracking_events.event_time` remains nullable).
 - AI assistance was used on this project (allowed by the brief).
 
 ### CSV duplicates and same-day ordering
 
-The provided `tracking_events.csv` contains many exact duplicate rows (same address, product name, date, and inventory flag), including repeated `False` rows for the same store/product/day. Dates are day-granularity only, so ties are common.
+The provided `tracking_events.csv` contains many exact duplicate rows (same address, product name, date, and inventory flag), including repeated `False` rows for the same store/product/day. Dates are day-granularity only, so ties are common (see the `id` tiebreak note above).
 
 This project treats each imported row as its own tracking event. When two events share a store, product, and `event_time`, order is by `id` (insert order). That means:
 
@@ -101,6 +111,15 @@ This project treats each imported row as its own tracking event. When two events
 - A day that has both `True` and `False` rows is ordered by insert/`id`, not by a “one observation per day” rule.
 
 That is intentional for this take-home: consecutive is defined on the event stream as stored, not on a deduped calendar day. A production system would likely unique on `(store, product, event_time)` or collapse same-day observations before alerting.
+
+## Known limitations
+
+- **Alert sync is create-only.** Updating or deleting a tracking event does not resync alerts; only `after_create` does. Re-run `bin/rails alerts:backfill` to repair.
+- **`alerts:backfill` rebuilds every alert** (`delete_all` + reinsert), so alert IDs change on each backfill.
+- **Pagination uses `OFFSET`.** Fine for this UI; deep pages on `/tracking_events` with 1M rows will get slower.
+- **Index pages recount the full event table** (`GROUP BY` counts) on every load. Rails counter caches do not update under `insert_all`, so caching or materialized counts would be the next step for those pages.
+- **Importer does not dedupe** the provided CSV (see above).
+- **`inventory_present` / `event_time` are still nullable** in the schema. The importer never writes nulls; null `event_time` is ignored for alerts. `NOT NULL` would be a reasonable follow-up.
 
 ## Original objectives (brief)
 
