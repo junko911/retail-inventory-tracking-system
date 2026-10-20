@@ -60,10 +60,9 @@ UI: `/alerts` (paginated, optional `brand_id` filter) and a show page for the tw
 **Import**
 
 - Load store address → id and product name → id maps once.
-- Memoize `Date.parse` (the CSV repeats a small set of calendar dates) and skip rows with blank/invalid dates, missing store, or missing product so a bad row cannot abort after batches have already been inserted.
-- `insert_all` in batches of 5,000 (no per-row validations/callbacks).
-- One `Alerts::Backfill` after the load (only if any rows were inserted).
-- Abort if any tracking events already exist (not idempotent; re-import would duplicate rows and invent false streaks).
+- Memoize `Date.parse` (the CSV repeats a small set of calendar dates) and skip rows with blank/invalid dates, missing store, or missing product.
+- `insert_all` in batches of 5,000 (no per-row validations/callbacks), then one `Alerts::Backfill`, all inside a **single DB transaction**. A mid-import failure rolls back so the guard still allows a retry.
+- Abort if any tracking events already exist (not idempotent; a successful second run would duplicate rows and invent false streaks).
 - The importer does **not** dedupe CSV rows. See Assumptions for how duplicate / same-day rows affect alerts.
 
 **Reads**

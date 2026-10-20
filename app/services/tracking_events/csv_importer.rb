@@ -9,6 +9,9 @@ module TrackingEvents
   #
   # Not idempotent: aborts if any tracking events already exist so a second run
   # cannot duplicate the CSV and invent false stockout streaks.
+  #
+  # All inserts and the alert backfill run in one DB transaction so a mid-import
+  # failure rolls back and the import can be retried.
   class CsvImporter
     class AlreadyImportedError < StandardError; end
 
@@ -31,39 +34,42 @@ module TrackingEvents
 
       row_count = 0
       created_count = 0
+      alert_count = 0
       batch = []
       now = Time.current
 
-      CSV.foreach(@path, headers: true) do |row|
-        row_count += 1
+      TrackingEvent.transaction do
+        CSV.foreach(@path, headers: true) do |row|
+          row_count += 1
 
-        store_id = store_ids_by_address[row["Address"]]
-        product_id = product_ids_by_name[row["Product Name"]]
-        event_time = parse_date(row["Date"])
-        next unless store_id && product_id && event_time
+          store_id = store_ids_by_address[row["Address"]]
+          product_id = product_ids_by_name[row["Product Name"]]
+          event_time = parse_date(row["Date"])
+          next unless store_id && product_id && event_time
 
-        batch << {
-          store_id: store_id,
-          product_id: product_id,
-          event_time: event_time,
-          inventory_present: cast_boolean(row["Inventory Present"]),
-          created_at: now,
-          updated_at: now
-        }
+          batch << {
+            store_id: store_id,
+            product_id: product_id,
+            event_time: event_time,
+            inventory_present: cast_boolean(row["Inventory Present"]),
+            created_at: now,
+            updated_at: now
+          }
 
-        if batch.size >= BATCH_SIZE
+          if batch.size >= BATCH_SIZE
+            TrackingEvent.insert_all(batch)
+            created_count += batch.size
+            batch.clear
+          end
+        end
+
+        if batch.any?
           TrackingEvent.insert_all(batch)
           created_count += batch.size
-          batch.clear
         end
-      end
 
-      if batch.any?
-        TrackingEvent.insert_all(batch)
-        created_count += batch.size
+        alert_count = created_count.positive? ? Alerts::Backfill.call : 0
       end
-
-      alert_count = created_count.positive? ? Alerts::Backfill.call : 0
 
       Rails.logger.info(
         "[TrackingEvents::CsvImporter] rows processed=#{row_count} " \

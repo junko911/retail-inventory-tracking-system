@@ -1,5 +1,6 @@
 require "test_helper"
 require "tempfile"
+require "minitest/mock"
 
 class TrackingEvents::CsvImporterTest < ActiveSupport::TestCase
   setup do
@@ -56,6 +57,31 @@ class TrackingEvents::CsvImporterTest < ActiveSupport::TestCase
       end
       assert_match(/already exist/i, error.message)
     end
+  ensure
+    csv.close!
+  end
+
+  test "rolls back inserted events if alert backfill fails so import can be retried" do
+    csv = Tempfile.new(["tracking_events", ".csv"])
+    csv.write(<<~CSV)
+      Address,Product Name,Date,Inventory Present
+      "1 Bagshot Row, Hobbiton",Bree-Brewed Ale,2026-08-01,False
+      "1 Bagshot Row, Hobbiton",Bree-Brewed Ale,2026-08-02,False
+    CSV
+    csv.flush
+
+    Alerts::Backfill.stub(:call, -> { raise "backfill failed" }) do
+      assert_raises(RuntimeError, "backfill failed") do
+        TrackingEvents::CsvImporter.new(csv.path).call
+      end
+    end
+
+    assert_equal 0, TrackingEvent.count
+    assert_equal 0, Alert.count
+
+    result = TrackingEvents::CsvImporter.new(csv.path).call
+    assert_equal 2, result[:created]
+    assert_equal 1, result[:alerts]
   ensure
     csv.close!
   end
