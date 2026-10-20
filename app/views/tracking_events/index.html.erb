@@ -2,12 +2,14 @@
 
 <% if @filter_product || @filter_store || @filter_brand %>
   <p>
-    Filtered by
-    <%= [
-      (@filter_product && "product #{link_to(@filter_product.name, product_path(@filter_product))}"),
-      (@filter_store && "store #{link_to(@filter_store.address, store_path(@filter_store))}"),
-      (@filter_brand && "brand #{link_to(@filter_brand.name, brand_path(@filter_brand))}")
-    ].compact.map(&:html_safe).to_sentence %>.
+    <% if @filter_product %>
+      for Product <%= link_to @filter_product.name, product_path(@filter_product) %>
+    <% elsif @filter_store %>
+      for Store <%= link_to @filter_store.address, store_path(@filter_store) %>
+    <% elsif @filter_brand %>
+      for Brand <%= link_to @filter_brand.name, brand_path(@filter_brand) %>
+    <% end %>
+    |
     <%= link_to "Clear filters", tracking_events_path %>
   </p>
 <% end %>
@@ -42,10 +44,3 @@
   </table>
   <%= pagination_nav { |page| tracking_events_path(page: page, product_id: params[:product_id], store_id: params[:store_id], brand_id: params[:brand_id]) } %>
 <% end %>
-
-<nav>
-  <%= link_to "Products", products_path %> |
-  <%= link_to "Brands", brands_path %> |
-  <%= link_to "Stores", stores_path %> |
-  <%= link_to "Alerts", alerts_path %>
-</nav>

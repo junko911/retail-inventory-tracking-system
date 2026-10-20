@@ -9,4 +9,12 @@ module ApplicationHelper
       safe_join(parts, " | ")
     end
   end
+
+  def main_nav_item(label, path, controller:)
+    if controller_name == controller.to_s
+      content_tag(:strong, label)
+    else
+      link_to(label, path)
+    end
+  end
 end

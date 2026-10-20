@@ -30,9 +30,3 @@
   </table>
   <%= pagination_nav { |page| alerts_path(page: page, brand_id: params[:brand_id]) } %>
 <% end %>
-
-<nav>
-  <%= link_to "Products", products_path %> |
-  <%= link_to "Brands", brands_path %> |
-  <%= link_to "Stores", stores_path %>
-</nav>

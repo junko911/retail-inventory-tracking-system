@@ -42,10 +42,3 @@
   </table>
   <%= pagination_nav { |page| price_checks_path(page: page, product_id: params[:product_id], store_id: params[:store_id], brand_id: params[:brand_id]) } %>
 <% end %>
-
-<nav>
-  <%= link_to "Products", products_path %> |
-  <%= link_to "Brands", brands_path %> |
-  <%= link_to "Stores", stores_path %> |
-  <%= link_to "Alerts", alerts_path %>
-</nav>
